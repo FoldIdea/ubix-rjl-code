@@ -80,35 +80,6 @@ describe('BlackjackService', function() {
       done();
     })
   })
-  describe('#dealerTotalRange', function() {
-    it('should total range for a deuce', function(done) {
-      var deuce = { value: 2 };
-      var dh = { visibleCards:[deuce] };
-      var tr = Blackjack.dealerTotalRange(dh);
-      tr.length.should.be.eql(2);
-      tr[0].should.be.eql(17);
-      tr[1].should.be.eql(17);
-      done();
-    })
-    it('should total range for a jack', function(done) {
-      var ten = { value: 10 };
-      var dh = { visibleCards:[ten] };
-      var tr = Blackjack.dealerTotalRange(dh);
-      tr.length.should.be.eql(2);
-      tr[0].should.be.eql(17);
-      tr[1].should.be.eql(20);
-      done();
-    })
-    it('should total range for an ace', function(done) {
-      var ace = { value:[1,11] };
-      var dh = { visibleCards:[ace] };
-      var tr = Blackjack.dealerTotalRange(dh);
-      tr.length.should.be.eql(2);
-      tr[0].should.be.eql(17);
-      tr[1].should.be.eql(20);
-      done();
-    })
-  })
   describe('#visibleCardValues', function() {
     it('should return visible cards', function(done) {
       var d = CardDeck.deck();
@@ -119,31 +90,6 @@ describe('BlackjackService', function() {
       vcv[3].should.be.eql(1);
       vcv[4].should.be.eql(1);
       (vcv[5] == null).should.be.true;
-      done();
-    })
-  })
-  describe('#calcProbabilities', function() {
-    it('should calculate a single probability', function(done) {
-      var p = Blackjack.calcProbabilities(9, 12, {}, 1);
-      p.should.be.approximately(0.077, 0.001);
-      done();
-    })
-    it('should calculate a face probability', function(done) {
-      var p = Blackjack.calcProbabilities(10, 11, {}, 1);
-      p.should.be.approximately(0.308, 0.001);
-      done();
-    })
-    it('should calculate a sum probability', function(done) {
-      var p = Blackjack.calcProbabilities(8, 10, {}, 1);
-      p.should.be.approximately(0.461, 0.001);
-      done();
-    })
-  })
-  describe('#handWinningProbability', function() {
-    it('should calculate a simple hand', function(done) {
-      var h = { cards:[ { value: 3 }, { value: 9 } ], total: 12 };
-      var p = Blackjack.handWinningProbability(h, [ 20, 20 ], {}, 1);
-      p.should.be.approximately(0.154, 0.001);
       done();
     })
   })
@@ -183,6 +129,70 @@ describe('BlackjackService', function() {
       t.hands[0].cards.length.should.be.eql(5);
       t.hands[0].total.should.be.eql(21);
       t.hands[0].done.should.be.eql('21!');
+      done();
+    })
+  })
+  describe('#calculateOddsToTotal', function() {
+    it('should calculate odds for dealer showing 4', function(done) {
+      var d = CardDeck.deck();
+      var t = Blackjack.openingDeal(d, 1);
+      var vc = Blackjack.visibleCardValues(t);
+      var probs = Blackjack.calculateOddsToTotal(t.dealerHand.total, vc, t.decks, 17);
+      probs.length.should.be.eql(22);
+      probs[0].should.be.approximately(0.485,0.001);
+      for (var i = 2; i < 17; i++) {
+        probs[i].should.be.eql(0);
+      }
+      probs[17].should.be.approximately(0.111,0.001);
+      probs[18].should.be.approximately(0.109,0.001);
+      probs[19].should.be.approximately(0.097,0.001);
+      probs[20].should.be.approximately(0.093,0.001);
+      probs[21].should.be.approximately(0.104,0.001);
+      done();
+    })
+    it('should calculate odds for player showing A, 3', function(done) {
+      var d = CardDeck.deck();
+      var t = Blackjack.openingDeal(d, 1);
+      var vc = Blackjack.visibleCardValues(t);
+      var lowprobs = Blackjack.calculateOddsToTotal(t.hands[0].total[0], vc, t.decks);
+      var expProbs = [ 0, 0, 0, 0, 0, 0.031, 0.082, 0.061, 0.061, 0.082, 0.082, 0.082, 0.082, 0.082, 0.327, 0.031, 0, 0, 0, 0, 0, 0 ];
+      var tot = 0;
+      for (var i = 0; i <= 21; i++) {
+        lowprobs[i].should.be.approximately(expProbs[i], 0.001);
+        tot += lowprobs[i];
+      }
+      tot.should.be.approximately(1.00,0.01);
+      var hiprobs = Blackjack.calculateOddsToTotal(t.hands[0].total[1], vc, t.decks);
+      var expProbs = [ 0.520, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0.031, 0.082, 0.061, 0.061, 0.082, 0.082, 0.082 ];
+      tot = 0;
+      for (var i = 0; i <= 21; i++) {
+        hiprobs[i].should.be.approximately(expProbs[i], 0.001);
+        tot += hiprobs[i];
+      }
+      tot.should.be.approximately(1.00,0.01);
+      done();
+    })
+  })
+  describe('#calculateWinChances', function() {
+    it('should calculate win chances', function(done) {
+      var d = CardDeck.deck();
+      var t = Blackjack.openingDeal(d, 1);
+      t.hands[0].winProbability.should.be.approximately(0.444,0.001);
+      t.hands[0].recommend.should.be.eql('stand');
+      done();
+    })
+    it('should calculate win chances after hit', function(done) {
+      var d = CardDeck.deck();
+      var t = Blackjack.openingDeal(d, 1);
+      // player has: A, 3
+      t = Blackjack.hitPlayer(0, t);
+      // player has: A, 3, 5 (9/19)
+      t.hands[0].winProbability.should.be.approximately(0.661,0.001);
+      t.hands[0].recommend.should.be.eql('stand')
+      // player has: A, 3, 5, 6 (15)
+      t = Blackjack.hitPlayer(0, t);
+      t.hands[0].winProbability.should.be.approximately(0.443,0.001);
+      t.hands[0].recommend.should.be.eql('stand')
       done();
     })
   })

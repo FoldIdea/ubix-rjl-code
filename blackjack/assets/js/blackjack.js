@@ -148,6 +148,7 @@ function addHand(playerNo, hand) {
   plHtml += '<div id="player' + playerNo + '" class="hand"><div class="doneMsg hidden"></div></div>';
   plHtml += '<div class="opts">';
   plHtml += '<button disabled="true" class="hit">Hit</button> <button disabled="true" class="stand">Stand</button>';
+  plHtml += '<span class="rec"></span>';
   plHtml += '<span class="winpct">Win: <em></em>%</span></div></div>';
   $('#players').append(plHtml);
   initHand($('#player' + playerNo), hand);
@@ -184,6 +185,13 @@ function setWinProbability(elem, hand) {
     $(winProbElem).find('em').text((hand.winProbability * 100.0).toFixed(2));
   } else {
     winProbElem.hide();
+  }
+  var recElem = $(elem).parent().find('.rec');
+  if (hand.recommend != null && hand.done == null) {
+    recElem.show();
+    $(recElem).text('(' + hand.recommend + ')');
+  } else {
+    recElem.hide();
   }
 }
 

@@ -57,8 +57,63 @@ module.exports = {
       if (round == 1) table.dealerHand.visibleCards.push(card); // start with the first dealer card hidden
       table.dealerHand.total = Blackjack.calcHandTotal(card, table.dealerHand.total);
     }
-    Blackjack.insertWinChance(table);
+    var visibleCards = Blackjack.visibleCardValues(table);
+    Blackjack.calculateHandOdds(table.dealerHand, visibleCards, table.decks, 17);
+    Blackjack.calculateWinChances(table);
     return table;
+  },
+
+  // calculating the odds - choosing not to take into account "used up" cards since, at least according to
+  // this site: http://www.ace-ten.com/fundamentals/computing/, these are not a significant factor.
+  calculateHandOdds: function(hand, visibleCards, decks, minVal) {
+    // start with the total of the visible card(s)
+    var total = 0;
+    for (var cIdx = 0; cIdx < hand.visibleCards.length; cIdx++) {
+      total = Blackjack.calcHandTotal(hand.visibleCards[cIdx], total);
+    }
+    var localVisible = _.clone(visibleCards);
+    if (Blackjack.isRangeTotal(total)) {
+      var loProbs = Blackjack.calculateOddsToTotal(total[0], localVisible, decks, minVal);
+      var hiProbs = Blackjack.calculateOddsToTotal(total[1], localVisible, decks, minVal);
+      // I admit I'm not quite sure how to combine these, but I'll just average them
+      hand.oddsToTotals = [];
+      for (var i = 0; i <= 21; i++) {
+        hand.oddsToTotals.push((loProbs[i] + hiProbs[i]) / 2.0);
+      }
+    } else {
+      hand.oddsToTotals = Blackjack.calculateOddsToTotal(total, localVisible, decks, minVal);
+    }
+    return hand.oddsToTotals;
+  },
+
+  calculateOddsToTotal: function(startTotal, visibleCards, decks, minValue) {
+    // this array will hold the probabilities for attaining a total between 2 and 21 + bust (idx 0), NOTE: idx 1 is ignored.
+    var probs = [ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 ];
+    var divisor = (52.0*decks - _.reduce(_.values(visibleCards), function(sum, el) { return sum + el; }, 0));
+    for (var cardVal = 1; cardVal <= 11; cardVal++) {
+      var newTotal = startTotal + cardVal;
+      var useCardVal = cardVal;
+      if (cardVal == 11 && newTotal > 21) useCardVal = 1; // can't bust due to Ace 11, so treat as a 1 to get probability added in
+      var inUse = visibleCards[useCardVal == 11 ? 1 : useCardVal] || 0;
+      var mult = (useCardVal == 10) ? 4 : 1;
+      if  (inUse == (4*mult)) continue; // all used up, so skip
+
+      var bust = (newTotal > 21);
+      var cardProb = (4.0*mult*decks - inUse) / divisor;
+      // not ideal, but split probability of Aces between 1 and 11 cases
+      if (useCardVal == 1 || useCardVal == 11) cardProb *= 0.5;
+      if (minValue && newTotal < minValue) {
+        visibleCards[useCardVal] = (visibleCards[useCardVal] || 0) + 1;
+        var addProbs = Blackjack.calculateOddsToTotal(startTotal + useCardVal, visibleCards, decks, minValue);
+        visibleCards[useCardVal] -= 1;
+        for (var idx = 0; idx <= 21; idx++) {
+          probs[idx] += addProbs[idx] * cardProb;
+        }
+      } else {
+        probs[bust ? 0 : newTotal] += cardProb;
+      }
+    }
+    return probs;
   },
 
   hitPlayer: function(playerIdx, table) {
@@ -74,7 +129,7 @@ module.exports = {
       hand.done = '21!'
       hand.winProbability = 1.0;
     }
-    Blackjack.insertWinChance(table);
+    Blackjack.calculateWinChances(table);
     return table;
   },
 
@@ -140,14 +195,75 @@ module.exports = {
     return table;
   },
 
-  insertWinChance: function(table) {
-    var dealerRange = Blackjack.dealerTotalRange(table.dealerHand);
+  // TODO: deal with "soft17stay" option
+  calculateWinChances: function(table) {
     var visibleCards = Blackjack.visibleCardValues(table);
-    for (var handIdx = 0; handIdx < table.hands.length; handIdx++) {
-      var hand = table.hands[handIdx];
-      if (!hand.done) {
-        hand.winProbability = Blackjack.handWinningProbability(hand, dealerRange, visibleCards, table.decks);
+    for (var plIdx = 0; plIdx < table.hands.length; plIdx++) {
+      var hand = table.hands[plIdx];
+      var standTotal = hand.total;
+
+      // special cases based on current total
+      if (Blackjack.isRangeTotal(hand.total)) {
+        if (hand.total[1] == 21) {
+          hand.winProbability = 1.0;
+          continue;
+        } else if (hand.total[1] > 21) {
+          standTotal = hand.total[0];
+        } else {
+          standTotal = hand.total[1];
+        }
+      } else if (hand.total > 21) {
+        hand.winProbability = 0.0;
+        continue;
+      } else if (hand.total == 21) {
+        hand.winProbability = 1.0;
+        continue;
       }
+
+      // work through 'hit' case
+      var recommend = 'hit';
+      var runningWins = 0;
+      var runningGames = 0;
+
+      // % - player stands on value below 17 (wins only if dealer naturally busts)
+      var chanceDealerBusts = table.dealerHand.oddsToTotals[0];
+      var fullOdds = Blackjack.calculateOddsToTotal(hand, visibleCards, table.decks);
+      var chanceBelowDealerMin = 0;
+      for (var tt = 2; tt < 17; tt++) { chanceBelowDealerMin += fullOdds[tt]; }
+      runningWins += (chanceBelowDealerMin * chanceDealerBusts);
+      runningGames += chanceBelowDealerMin;
+
+      hand.oddsToTotals = Blackjack.calculateHandOdds(hand, visibleCards, table.decks, 17);
+
+      // now step through chance player gets a specific total (win if dealer at or below total)
+      var dealerAtOrBelowTotalOrBust = chanceDealerBusts; // start with bust % since that is also a win for this case
+      for (var total = 17; total <= 20; total++) {
+        var oddsOfTotal = hand.oddsToTotals[total];
+        runningGames += oddsOfTotal;
+        dealerAtOrBelowTotalOrBust += table.dealerHand.oddsToTotals[total];
+        runningWins += (dealerAtOrBelowTotalOrBust * oddsOfTotal);
+      }
+      // 21 is always a win
+      runningWins += hand.oddsToTotals[21];
+      runningGames += hand.oddsToTotals[21];
+
+      runningGames += hand.oddsToTotals[0]; // player busts - no wins there!
+
+      var winProb = (runningWins / runningGames);
+
+      // now work through "stand" probability
+      runningWins = table.dealerHand.oddsToTotals[0]; // start with dealer busts chance
+      for (var total = 17; total < standTotal; total++) {
+        runningWins += table.dealerHand.oddsToTotals[total]; // add any dealer less than standing total
+      }
+      if (runningWins > winProb) {
+        recommend = 'stand';
+        winProb = runningWins;
+      }
+
+      // and win % is therefore "wins" over "games"
+      hand.winProbability = winProb;
+      hand.recommend = recommend;
     }
   },
 
@@ -166,94 +282,5 @@ module.exports = {
       }
     }
     return cardVals;
-  },
-
-  // this calculates the theoritical range (min,max) for a dealer's hand based on visible card(s).
-  // it currently does not take into account other visible cards, so it may not be perfect.
-  // the idea is to provide a target range of "numbers to beat" by the player hands.
-  //
-  // for future consideration, here are charts for dealer probability of hand based on showing card:
-  // http://wizardofodds.com/games/blackjack/appendix/2a/
-  dealerTotalRange: function(dealerHand) {
-    var dealerVisibleTotal = 0;
-    for (var c = 0; c < dealerHand.visibleCards.length; c++) {
-      dealerVisibleTotal = Blackjack.calcHandTotal(dealerHand.visibleCards[c], dealerVisibleTotal);
-    }
-    var maxBase = dealerVisibleTotal, minBase = dealerVisibleTotal;
-    if (Blackjack.isRangeTotal(dealerVisibleTotal)) {
-      if (dealerVisibleTotal[1] == 21) return [21, 21];  // look for blackjack
-      if (dealerVisibleTotal[1] > 21) { // if ace 11 busts, use ace 1 value
-        minBase = dealerVisibleTotal[0];
-        maxBase = dealerVisibleTotal[0];
-      } else if (dealerVisibleTotal[0] == 1) { // if all we got is an ace, use the high value only
-        minBase = dealerVisibleTotal[1];
-        maxBase = dealerVisibleTotal[1];
-      } else {
-        minBase = dealerVisibleTotal[0];
-        maxBase = dealerVisibleTotal[1] - 1;
-      }
-    }
-    if (minBase + 1 > 21) return [22, 22]; // bust
-    if (maxBase + 11 > 20) maxBase = 9; // bring max to 20
-    if (minBase < 16) minBase = 16; // +1 = 17 - mininum required by rules
-    if (maxBase < 6) maxBase = 6; // +11 = 17 - minimum required by rules
-    return [ minBase + 1, maxBase + 11 ];
-  },
-
-  // calculating the probability of getting a winning hand over the dealer
-  // for the time being, we'll treat "push" as a "win" since we're not betting
-  // edge case: if "blackjack" or total of 21 - winning = 100%
-  // standard case: for simplicity we'll assume dealer has best possible non-blackjack total based on showing card to start.
-  // to start, we'll use the probability of winning as: drawing 1 card to beat the dealer's best possible hand.
-  // From here: http://probability.infarom.ro/blackjack.html
-  // this calculates as:
-  //   x = 10:  P = (16m - nx)/(52m - nv)
-  //   x != 10: P = (4m - nx)/(52m - nv)
-  // where: x = target card value, nx = number of visible x cards, m = total decks, nv = total visible cards
-  // Note that this strategy creates a "win chance" akin to what is used in sports games.
-  calcProbabilities: function(mincard, handTotal, visibleCards, decks, startingProb) {
-    var divisor = 52.0*decks - _.keys(visibleCards).length;
-    var totalProb = (startingProb || 0);
-    var maxcard = (mincard == 1) ? 10 : 11;
-    for (var cv = mincard; cv < maxcard; cv++) {
-      if (handTotal + cv > 21) break; // no point in busting
-      var nx = visibleCards[(cv == 11 ? 1 : cv)] || 0; // aces are stored as 1's
-      var prob = 0.0;
-      if (cv == 10 && nx < 16) {
-        prob = (16.0*decks - nx)/divisor;
-      } else if (cv != 10 && nx < 4) {
-        prob = (4.0*decks - nx)/divisor;
-      }
-      if (prob > 0.0) totalProb += prob;
-    }
-    return totalProb;
-  },
-
-  handWinningProbability: function(hand, targets, visibleCards, decks) {
-    var handmin = hand.total, handmax = hand.total;
-    if (Blackjack.isRangeTotal(hand.total)) {
-      if (hand.total[1] > 21) {
-        handmin = hand.total[0];
-        handmax = hand.total[1];
-      } else {
-        handmin = hand.total[0];
-        handmax = hand.total[1];
-      }
-    }
-    if (handmax == 21) return 1.0; // 21! - 100% chance of win
-    if (handmin > 21) return 0.0; // bust!
-    // assume dealer has base (17) case for now.
-    var maxtarget = targets[0];
-    // first, can we beat the max with 1 card?
-    if (handmax + 11 < maxtarget) return 0.0; // cannot beat the dealer with one card -- maybe try again?
-    // second, determine what card we need to beat or match the max target
-    var mincard = maxtarget - handmin;
-    // determine probs for every possible winning single card
-    var winningProbability = Blackjack.calcProbabilities(mincard, handmin, visibleCards, decks);
-    if (handmax != handmin) {
-      var maxcard = maxtarget - handmax;
-      winningProbability = Blackjack.calcProbabilities(maxcard, handmax, visibleCards, decks, winningProbability);
-    }
-    return winningProbability;
   }
 }
