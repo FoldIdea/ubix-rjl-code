@@ -1,0 +1,122 @@
+body { padding-top: 85px; background:forestgreen; color:gold; }
+
+.navbar {
+  background: darkgreen;
+  color: darkgoldenrod;
+}
+.row {
+  text-align:center;
+  .cell {
+    text-align: center;
+    border: solid 3px gold;
+    padding: 10px;
+    vertical-align: top;
+
+    h3 {
+      margin: 0 0 5px;
+    }
+  }
+  .cell.shoe { border: none; }
+}
+
+.card {
+  width: 100px;
+  height: 160px;
+  border-radius: 9px;
+  border: solid 1px black;
+  background-color: white;
+  color: black;
+
+  .ctr {
+    position: relative;
+    text-align: center;
+    width: 100%; height: 100%;
+    line-height: 158px;
+    font-size: 50px;
+    font-weight: bold;
+
+    .cnr {
+      position: absolute; line-height: 1em;
+      font-size: 19px; font-weight: normal;
+    }
+    .cnr.tl { top: 5px; left: 5px; }
+    .cnr.br { bottom: 5px; right: 5px; }
+  }
+}
+.card.Hearts, .card.Diamonds { color: red };
+.card.facedown {
+  background-color: darkred;
+  .ctr { display: none; }
+}
+
+.shoe {
+  border: none;
+  margin-top: 15px;
+  position: relative;
+  height: 310px;
+  .shoebox {
+    position: absolute;
+    top: 20px; left: 60px;
+    border: solid 5px rgba(128,128,128,0.3);
+    padding: 5px;
+    background: rgba(255,255,255,0.7);
+    z-index: 100;
+    width: 120px; height: 187px;
+  }
+
+  .card {
+    position: absolute;
+    top: 33px; left: 70px;
+    z-index: 10;
+  }
+  .card#shoedecktop.slid {
+    left: 160px;
+    transition: left 0.4s; -webkit-transition: left 0.4s;
+  }
+  .card#shoedraw { left: 160px; }
+}
+#players .cell {
+  margin-top: 15px;
+  .opts {
+    text-align: left;
+    button { color: black; }
+    .winpct {
+      float: right;
+      em {
+        font-size: 18px;
+        font-style: normal;
+      }
+    }
+  }
+}
+#players .cell.inactive { opacity: 0.65; }
+
+.hand {
+  height: 320px;
+  .card {
+    position: absolute;
+    left: 10px;
+  }
+  .card.c1, .card.c2, .card.c3, .card.c4 { top: 45px; }
+  .card.c5, .card.c6, .card.c7, .card.c8 { top: 70px; }
+  .card.c9, .card.c10, .card.c11, .card.c12 { top: 95px; }
+  .card.c13, .card.c14, .card.c15, .card.c16 { top: 120px; }
+  .card.c17, .card.c18, .card.c19, .card.c20 { top: 145px; }
+  .card.c2, .card.c6, .card.c10, .card.c14, .card.c18 { left: 48px; }
+  .card.c3, .card.c7, .card.c11, .card.c15, .card.c19 { left: 88px; }
+  .card.c4, .card.c8, .card.c12, .card.c16, .card.c20 { left: 128px; }
+  .doneMsg {
+    position: absolute; width: 100%; height: 100%; z-index: 99;
+    background-color: rgba(128,128,128,0.3);
+    text-align: center; line-height: 280px;
+    color: black; text-shadow: 2px 2px 2px white, 2px -2px 2px white, -2px 2px 2px white, -2px -2px 2px white;
+    font-size: 50px;
+  }
+  .doneMsg.hidden { display: none; }
+}
+
+.opts {
+  dt { font-size: 18px; padding-top: 8px; }
+  dd { font-size: 18px; font-weight: normal; }
+  button { color: black; }
+}

@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
   <head>
-    <title>New Sails App</title>
+    <title>Ubixian Blackjack</title>
 
     <!-- Viewport mobile tag for sensible mobile support -->
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1">
@@ -36,8 +36,12 @@
   </head>
 
   <body>
-
-    <%- body %>
+    <div class="navbar navbar-default navbar-fixed-top">
+      <div class="container"><h1>Ubixian Blackjack</h1></div>
+    </div>
+    <div class="container">
+      <%- body %>
+    </div>
 
 
 
@@ -63,7 +67,7 @@
     -->
 
     <!--TEMPLATES-->
-    
+
     <!--TEMPLATES END-->
 
 
@@ -92,8 +96,9 @@
 
     <!--SCRIPTS-->
     <script src="/js/dependencies/sails.io.js"></script>
+    <script src="/js/dependencies/jquery.js"></script>
     <script src="/js/dependencies/bootstrap.min.js"></script>
-    <script src="/js/dependencies/jquery.min.js"></script>
+    <script src="/js/blackjack.js"></script>
     <!--SCRIPTS END-->
   </body>
 </html>

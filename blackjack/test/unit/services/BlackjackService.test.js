@@ -86,8 +86,8 @@ describe('BlackjackService', function() {
       var dh = { visibleCards:[deuce] };
       var tr = Blackjack.dealerTotalRange(dh);
       tr.length.should.be.eql(2);
-      tr[0].should.be.eql(3);
-      tr[1].should.be.eql(13);
+      tr[0].should.be.eql(17);
+      tr[1].should.be.eql(17);
       done();
     })
     it('should total range for a jack', function(done) {
@@ -95,7 +95,7 @@ describe('BlackjackService', function() {
       var dh = { visibleCards:[ten] };
       var tr = Blackjack.dealerTotalRange(dh);
       tr.length.should.be.eql(2);
-      tr[0].should.be.eql(11);
+      tr[0].should.be.eql(17);
       tr[1].should.be.eql(20);
       done();
     })
@@ -104,7 +104,7 @@ describe('BlackjackService', function() {
       var dh = { visibleCards:[ace] };
       var tr = Blackjack.dealerTotalRange(dh);
       tr.length.should.be.eql(2);
-      tr[0].should.be.eql(12);
+      tr[0].should.be.eql(17);
       tr[1].should.be.eql(20);
       done();
     })
@@ -144,6 +144,45 @@ describe('BlackjackService', function() {
       var h = { cards:[ { value: 3 }, { value: 9 } ], total: 12 };
       var p = Blackjack.handWinningProbability(h, [ 20, 20 ], {}, 1);
       p.should.be.approximately(0.154, 0.001);
+      done();
+    })
+  })
+  describe('#hitme', function() {
+    it('should add a card', function(done) {
+      var d = CardDeck.deck();
+      var t = Blackjack.openingDeal(d, 1);
+      var t = Blackjack.hitPlayer(0, t);
+      t.hands[0].cards.length.should.be.eql(3);
+      Array.isArray(t.hands[0].total).should.be.true;
+      t.hands[0].total[0].should.be.eql(9);
+      t.hands[0].total[1].should.be.eql(19);
+      (t.hands[0].done == null).should.be.true;
+      done();
+    })
+    it('should bust a hand', function(done) {
+      var d = CardDeck.deck();
+      var t = Blackjack.openingDeal(d, 1);
+      t = Blackjack.hitPlayer(0, t);
+      t = Blackjack.hitPlayer(0, t);
+      t.hands[0].cards.length.should.be.eql(4);
+      Array.isArray(t.hands[0].total).should.be.false;
+      t.hands[0].total.should.be.eql(15);
+      (t.hands[0].done == null).should.be.true;
+      t = Blackjack.hitPlayer(0, t);
+      t.hands[0].cards.length.should.be.eql(5);
+      t.hands[0].total.should.be.eql(22);
+      t.hands[0].done.should.be.eql('Bust');
+      done();
+    })
+    it('should 21 a hand', function(done) {
+      var d = [ { value:7 }, { value:2 }, { value:4 }, { value:2 }, { value:3 }, { value:4 }, { value:3 } ];
+      var t = Blackjack.openingDeal(d, 1);
+      t = Blackjack.hitPlayer(0, t);
+      t = Blackjack.hitPlayer(0, t);
+      t = Blackjack.hitPlayer(0, t);
+      t.hands[0].cards.length.should.be.eql(5);
+      t.hands[0].total.should.be.eql(21);
+      t.hands[0].done.should.be.eql('21!');
       done();
     })
   })

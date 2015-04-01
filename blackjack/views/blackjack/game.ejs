@@ -1,1 +1,45 @@
-<%# insert content here %>
+<div class="row">
+  <div class="opts col-lg-2">
+    <dl>
+      <dt>Decks:</dt>
+      <dd>
+        <select id="go_decks">
+          <option>1</option><option>2</option><option>3</option><option>4</option>
+          <option>5</option><option>6</option><option>7</option><option>8</option>
+        </select>
+      </dd>
+      <dt>Players:</dt>
+      <dd>
+        <select id="go_players">
+          <option>1</option><option>2</option><option>3</option><option>4</option>
+          <option>5</option><option>6</option><option>7</option>
+        </select>
+      </dd>
+      <dt>Dealer:</dt>
+      <dd>
+        <select id="go_soft17stay">
+          <option value="true">Stands on "Soft 17"</option>
+          <option value="">Hits on "Soft 17"</option>
+        </select>
+      </dd>
+      <dt>&nbsp;</dt>
+      <dd>
+        <button id="startGame">Start Game</button>
+      </dd>
+    </dl>
+  </div>
+  <div class="cell col-lg-3 shoe">
+    <div class="shoebox"></div>
+    <div id="shoedeck" class="card facedown"></div>
+    <div id="shoedecktop" class="card facedown"></div>
+    <div id="shoedraw" class="card facedown"></div>
+  </div>
+  <div class="cell col-lg-3">
+    <h3>Dealer Hand</h3>
+    <div id="dealerhand" class="hand">
+      <div class="doneMsg hidden"></div>
+    </div>
+  </div>
+</div>
+<div class="row" id="players">
+</div>
