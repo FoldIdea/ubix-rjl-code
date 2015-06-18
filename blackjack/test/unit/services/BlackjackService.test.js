@@ -195,5 +195,8 @@ describe('BlackjackService', function() {
       t.hands[0].recommend.should.be.eql('stand')
       done();
     })
+    it('should recommend hit then stand', function() {
+
+    })
   })
 })
