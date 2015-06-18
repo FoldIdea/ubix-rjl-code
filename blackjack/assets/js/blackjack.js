@@ -235,7 +235,7 @@ function dealCard() {
   drawCard.animate({
     left: endPosLeft+'px',
     top: endPosTop+'px'
-  }, 500);
+  }, 400);
 
   // animate top card into draw position (using css animations)
   $('#shoedecktop').addClass('slid');
@@ -248,5 +248,5 @@ function dealCard() {
     newCard.show();
     cardsToDeal.shift();
     dealCard();
-  }, 525);
+  }, 425);
 }
